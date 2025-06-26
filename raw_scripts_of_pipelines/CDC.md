@@ -1,0 +1,235 @@
+CREATE DATABASE PROJECTS_DB;
+
+CREATE SCHEMA PROJECTS_DB.CDC;
+
+
+CREATE OR REPLACE FILE FORMAT csv_type
+TYPE='CSV'
+FIELD_DELIMITER=','
+RECORD_DELIMITER='\n'
+SKIP_HEADER=1
+ERROR_ON_COLUMN_COUNT_MISMATCH = FALSE;
+
+
+
+CREATE STORAGE INTEGRATION s3_integration
+TYPE=EXTERNAL_STAGE
+STORAGE_PROVIDER=S3
+ENABLED = TRUE
+STORAGE_AWS_ROLE_ARN = 'arn:aws:iam::003956177349:role/S3_FULLACCESS_SNOWFLAKE'
+STORAGE_ALLOWED_LOCATIONS=('s3://snowflake-practitce-bucket/cdc/');
+
+-- DESCRIBE INTEGRATION s3_integration;
+
+CREATE OR REPLACE STAGE s3_ext_stage
+URL='s3://snowflake-practitce-bucket/cdc/'
+FILE_FORMAT=csv_type
+STORAGE_INTEGRATION=s3_integration;
+
+LIST @s3_ext_stage;
+
+
+
+-- CREATE OR REPLACE STREAM my_table_stream ON TABLE CUSTOMER_STAGING;
+
+CREATE OR REPLACE PIPE staging_pipe
+AUTO_INGEST=TRUE
+AS
+COPY INTO PROJECTS_DB.CDC.CUSTOMER_STAGING
+FROM (
+        SELECT 
+        $1::INT AS CustomerID,
+        $2::STRING AS CustomerName,
+        $3::STRING AS Region,
+        $4::STRING AS Email,
+        CURRENT_TIMESTAMP() AS Curr_Timestamp
+        FROM @s3_ext_stage
+)
+FILE_FORMAT=(FORMAT_NAME=csv_type);
+
+
+DESCRIBE PIPE staging_pipe;
+
+CREATE OR REPLACE TABLE PROJECTS_DB.CDC.CUSTOMER_STAGING (
+    CustomerID INT,
+    CustomerName STRING,
+    Region STRING,
+    Email STRING,
+    Curr_Timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP()
+);
+
+SELECT * FROM PROJECTS_DB.CDC.CUSTOMER_STAGING;
+
+
+CREATE OR REPLACE TABLE PROJECTS_DB.CDC.CUSTOMER_TARGET(
+    CustomerID INT,
+    CustomerName STRING,
+    Region STRING,
+    Email STRING,
+    Curr_Timestamp timestamp
+
+);
+
+
+-- CREATE OR REPLACE TASK task_load
+-- WAREHOUSE=COMPUTE_WH
+-- SCHEDULE='3 M'
+-- AS
+-- BEGIN
+
+-- -- TRUNCATE TABLE PROJECTS_DB.CDC.CUSTOMER_STAGING;
+
+-- MERGE INTO PROJECTS_DB.CDC.CUSTOMER_TARGET AS tgt 
+-- USING PROJECTS_DB.CDC.CUSTOMER_STAGING stg
+-- ON tgt.CustomerID = stg.CustomerID
+-- WHEN MATCHED AND stg.Curr_Timestamp > tgt.Curr_Timestamp THEN UPDATE SET
+-- tgt.CustomerName = stg.CustomerName,
+-- tgt.Region = stg.Region,
+-- tgt.Email = stg.Email,
+-- tgt.Curr_Timestamp = stg.Curr_Timestamp
+-- WHEN NOT MATCHED 
+-- THEN 
+-- INSERT (CustomerID, CustomerName, Region, Email, Curr_Timestamp)
+-- VALUES (stg.CustomerID, stg.CustomerName, stg.Region, stg.Email, stg.Curr_Timestamp);
+
+
+-- TRUNCATE TABLE PROJECTS_DB.CDC.AGGREGATED_RESULT;
+
+-- END;
+
+CREATE OR REPLACE TASK task_load
+WAREHOUSE = COMPUTE_WH
+SCHEDULE = '3 M'
+AS
+BEGIN
+-- Deduplicate staging data: keep only the latest row per CustomerID
+MERGE INTO PROJECTS_DB.CDC.CUSTOMER_TARGET AS tgt
+USING (
+    SELECT *
+    FROM (
+        SELECT *,
+               ROW_NUMBER() OVER (PARTITION BY CustomerID ORDER BY Curr_Timestamp DESC) AS rn
+        FROM PROJECTS_DB.CDC.CUSTOMER_STAGING
+    ) 
+    WHERE rn = 1
+) AS stg
+ON tgt.CustomerID = stg.CustomerID
+
+WHEN MATCHED AND stg.Curr_Timestamp > tgt.Curr_Timestamp THEN
+    UPDATE SET
+        tgt.CustomerName = stg.CustomerName,
+        tgt.Region = stg.Region,
+        tgt.Email = stg.Email,
+        tgt.Curr_Timestamp = stg.Curr_Timestamp
+
+WHEN NOT MATCHED THEN
+    INSERT (CustomerID, CustomerName, Region, Email, Curr_Timestamp)
+    VALUES (stg.CustomerID, stg.CustomerName, stg.Region, stg.Email, stg.Curr_Timestamp);
+
+-- Clean up aggregated result table
+TRUNCATE TABLE PROJECTS_DB.CDC.AGGREGATED_RESULTS_TABLE;
+
+END;
+
+
+CREATE OR REPLACE TABLE AGGREGATED_RESULTS_TABLE(
+TOTAL_PROCESSED_RECORD NUMBER,
+TOTAL_UPDATED_RECORDS NUMBER,
+TOTAL_NEW_INSERTED_RECORDS NUMBER
+);
+
+
+
+CREATE OR REPLACE TASK AGGREGATED_RESULT
+WAREHOUSE=COMPUTE_WH
+AFTER task_load
+AS
+INSERT INTO AGGREGATED_RESULTS_TABLE (
+    TOTAL_PROCESSED_RECORD,
+    TOTAL_UPDATED_RECORDS,
+    TOTAL_NEW_INSERTED_RECORDS
+)
+SELECT
+    -- Total processed
+    (SELECT COUNT(*) 
+     FROM PROJECTS_DB.CDC.CUSTOMER_STAGING),
+
+    -- Total updated
+    (SELECT COUNT(*) 
+     FROM PROJECTS_DB.CDC.CUSTOMER_STAGING a
+     INNER JOIN PROJECTS_DB.CDC.CUSTOMER_TARGET b 
+     ON a.customerid = b.customerid),
+
+    -- Total new inserted
+    (SELECT COUNT(*) 
+     FROM PROJECTS_DB.CDC.CUSTOMER_STAGING a
+     RIGHT OUTER JOIN PROJECTS_DB.CDC.CUSTOMER_TARGET b 
+     ON a.customerid = b.customerid
+     WHERE a.customerid IS NULL);
+
+
+
+CREATE OR REPLACE TASK truncate_staging
+WAREHOUSE=COMPUTE_WH
+AFTER AGGREGATED_RESULT
+AS 
+BEGIN
+TRUNCATE TABLE PROJECTS_DB.CDC.CUSTOMER_STAGING;
+END;
+
+
+-- CREATE OR REPLACE TASK auto_suspend
+-- WAREHOUSE=COMPUTE_WH
+-- AFTER truncate_staging
+-- AS 
+-- BEGIN
+-- ALTER task task_load SUSPEND;
+-- END;
+
+-- CREATE OR REPLACE TASK auto_on
+-- WAREHOUSE=COMPUTE_WH
+-- WHEN SYSTEM$STREAM_HAS_DATA('my_table_stream')
+-- AS 
+-- BEGIN
+-- ALTER TASK task_load RESUME;
+-- END;
+
+
+
+ALTER TASK truncate_staging RESUME;
+ALTER TASK AGGREGATED_RESULT RESUME;
+ALter task task_load resume;
+
+
+-- SELECT COUNT(*) AS TOTAL_PROCESSED_RECORD FROM PROJECTS_DB.CDC.CUSTOMER_STAGING;
+
+-- SELECT COUNT(*) as TOTAL_UPDATED_RECORDS
+-- FROM PROJECTS_DB.CDC.CUSTOMER_STAGING a
+-- INNER JOIN PROJECTS_DB.CDC.CUSTOMER_TARGET b ON a.customerid=b.customerid;
+
+-- SELECT COUNT(*) AS TOTAL_NEW_INSERTED_RECORDS
+-- FROM PROJECTS_DB.CDC.CUSTOMER_STAGING a
+-- right outer join PROJECTS_DB.CDC.CUSTOMER_TARGET b ON a.customerid=b.customerid;
+
+
+-- DROP TASK auto_on;
+
+
+
+TRUNCATE TABLE PROJECTS_DB.CDC.CUSTOMER_TARGET;
+
+
+insert INTO PROJECTS_DB.CDC.CUSTOMER_TARGET;
+
+SELECT * FROM PROJECTS_DB.CDC.CUSTOMER_STAGING;
+
+SELECT * FROM PROJECTS_DB.CDC.CUSTOMER_TARGET order by customerid desc;
+
+SELECT count(*) FROM PROJECTS_DB.CDC.CUSTOMER_TARGET;
+
+
+SELECT * FROM AGGREGATED_RESULTS_TABLE;
+
+describe task task_load;
+
+ALTER TASK task_load SUSPEND;
