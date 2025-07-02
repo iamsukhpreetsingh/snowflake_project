@@ -1,4 +1,4 @@
-# Snowflake Environment Refresh Automation
+# Snowflake: Environment Refresh Automation
 ## Project Documentation 
 
 ### Executive Summary
