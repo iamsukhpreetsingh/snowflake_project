@@ -5,7 +5,7 @@
 
 This project successfully addressed critical data freshness issues in one of the client's development environment by implementing an automated zero-copy cloning solution using Snowflake's native capabilities. The solution reduced manual DBA intervention from 6 hours to zero while ensuring data privacy compliance through automated PII sanitization.
 
-[Watch the video](https://youtu.be/sayayWlLY3M)
+[Watch the demonstration video here](https://youtu.be/sayayWlLY3M)
 
 
 **Key Achievements:**
