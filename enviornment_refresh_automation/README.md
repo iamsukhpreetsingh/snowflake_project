@@ -5,6 +5,9 @@
 
 This project successfully addressed critical data freshness issues in one of the client's development environment by implementing an automated zero-copy cloning solution using Snowflake's native capabilities. The solution reduced manual DBA intervention from 6 hours to zero while ensuring data privacy compliance through automated PII sanitization.
 
+[![Watch the video]](https://youtu.be/sayayWlLY3M)
+
+
 **Key Achievements:**
 - Automated environment refresh every 12 hours
 - Implemented dynamic PII data masking for 47 production tables
@@ -62,7 +65,7 @@ UTILITY_DB (Control Database)
 
 ## Implementation Details
 
-Check Script here: 
+### Check Script here: https://github.com/iamsukhpreetsingh/snowflake_project/blob/main/enviornment_refresh_automation/env_refresh_script.md
 
 ### 1. Utility Database Setup
 
