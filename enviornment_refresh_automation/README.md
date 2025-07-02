@@ -10,7 +10,7 @@ This project successfully addressed critical data freshness issues in one of the
 
 **Key Achievements:**
 - Automated environment refresh every 12 hours
-- Implemented dynamic PII data masking for 47 production tables
+- Implemented dynamic PII data masking for production tables
 - Created intelligent backup retention (3 most recent backups)
 - Built validation and rollback mechanisms
 - Eliminated 30% development velocity loss due to stale data
@@ -23,7 +23,7 @@ This project successfully addressed critical data freshness issues in one of the
 - **Stale Data:** Development environment data was 3 months old
 - **Manual Overhead:** 6 hours of DBA time per refresh
 - **Business Impact:** 30% reduction in development velocity
-- **Scale:** 2TB production data across 47 tables requiring refresh (actual scenario)
+- **Scale:** production data across tables requiring refresh 
 
 ### Solution Requirements
 1. Automated environment refresh with optimal frequency
@@ -176,7 +176,7 @@ ALTER TASK UTILITY_DB.PUBLIC.backup_script SUSPEND;
 ### Phase 1: Initial Deployment (Week 1-2)
 1. **Setup Utility Database** in production Snowflake account
 2. **Deploy Procedures** with dry-run mode enabled
-3. **Validate PII Detection** across all 47 production tables
+3. **Validate PII Detection** across all production tables
 4. **Test Rollback Mechanisms** in staging environment
 
 ### Phase 2: Pilot Implementation (Week 3-4)
