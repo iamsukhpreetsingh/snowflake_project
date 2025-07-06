@@ -1,4 +1,4 @@
-# 📄 NOTE: Secure Data Sharing in Snowflake with Reader Accounts (Note this is just a demo snippet what we implemeted in projects of organisation)
+# 📄: Secure Data Sharing in Snowflake with Reader Accounts 
 
 ---
 
@@ -256,3 +256,5 @@ FROM TABLE(INFORMATION_SCHEMA.REPLICATION_GROUP_REFRESH_HISTORY())
 WHERE replication_group_name = 'apac_inventory_replication_group'
 ORDER BY last_refresh_time DESC;
 ```
+
+(Note: this is just a demo snippet of what we implemented in projects of the organization)
