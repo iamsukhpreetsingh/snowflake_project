@@ -8,9 +8,9 @@ This project implements **secure data sharing** between Snowflake accounts using
 
 ---
 
-## ✅ What You’ll Achieve
+## ✅ What was Achieved
 
-- **Secure Data Filtering**: Share only the APAC region data with masked supplier details.
+- **Secure Data Filtering**: Share only the data with masked supplier details.
 - **Reader Account Setup**: Create a managed account for your partner with limited access.
 - **Real-Time Replication**: Enable automatic synchronization every 15 minutes.
 - **Comprehensive Monitoring**: Track usage patterns and suspicious activities.
