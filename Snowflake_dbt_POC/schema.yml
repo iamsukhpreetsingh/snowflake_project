@@ -1,0 +1,156 @@
+# models/marts/finance/schema.yml
+version: 2
+
+models:
+  - name: fct_monthly_revenue
+    description: >
+      Monthly revenue facts aggregated by customer and month. This table serves as the 
+      primary source for revenue reporting and analysis. Data is refreshed daily and 
+      includes both current and historical revenue metrics with period-over-period comparisons.
+    
+    config:
+      contract:
+        enforced: true
+    
+    columns:
+      - name: date_month
+        description: "First day of the month for the revenue period"
+        data_type: date
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_of_type:
+              column_type: date
+
+      - name: customer_id
+        description: "Unique identifier for customer"
+        data_type: varchar
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customers')
+              field: customer_id
+
+      - name: customer_segment
+        description: "Customer business segment (Enterprise, SMB, etc.)"
+        data_type: varchar
+        tests:
+          - accepted_values:
+              values: ['Enterprise', 'SMB', 'Startup', 'Individual']
+
+      - name: customer_region
+        description: "Geographic region of customer"
+        data_type: varchar
+        tests:
+          - not_null
+
+      - name: total_orders
+        description: "Number of completed orders in the month"
+        data_type: integer
+        constraints:
+          - type: not_null
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+              max_value: 10000
+
+      - name: gross_revenue
+        description: "Total revenue before discounts"
+        data_type: numeric(12,2)
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+
+      - name: total_discounts
+        description: "Total discount amount applied"
+        data_type: numeric(12,2)
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+
+      - name: net_revenue
+        description: "Revenue after discounts (gross_revenue - total_discounts)"
+        data_type: numeric(12,2)
+        tests:
+          - not_null
+          - dbt_expectations.expect_column_values_to_be_between:
+              min_value: 0
+
+      - name: avg_order_value
+        description: "Average order value for the month"
+        data_type: numeric(10,2)
+        tests:
+          - not_null
+
+      - name: customer_value_tier
+        description: "Customer value classification based on monthly spend"
+        data_type: varchar
+        tests:
+          - accepted_values:
+              values: ['high_value', 'medium_value', 'low_value']
+
+      - name: month_over_month_growth_pct
+        description: "Percentage growth compared to previous month"
+        data_type: numeric(5,2)
+
+      - name: cumulative_revenue
+        description: "Running total of revenue for customer"
+        data_type: numeric(15,2)
+        tests:
+          - not_null
+
+      - name: has_negative_revenue_flag
+        description: "Flag indicating if revenue is negative (data quality issue)"
+        data_type: boolean
+        tests:
+          - not_null
+
+      - name: dbt_updated_at
+        description: "Timestamp when record was last updated by dbt"
+        data_type: timestamp
+        tests:
+          - not_null
+
+      - name: etl_run_id
+        description: "Unique identifier for the ETL run that created this record"
+        data_type: varchar
+
+    tests:
+      - unique:
+          column_name: "date_month || '-' || customer_id"
+          config:
+            severity: error
+      
+      - dbt_expectations.expect_table_row_count_to_be_between:
+          min_value: 1000
+          max_value: 1000000
+          config:
+            severity: warn
+      
+      # Custom business logic test
+      - assert_revenue_consistency:
+          config:
+            severity: error
+            
+      # Freshness test
+      - dbt_expectations.expect_grouped_row_values_to_have_recent_data:
+          group_by: [customer_region]
+          timestamp_column: date_month
+          datepart: month
+          interval: 2
+          config:
+            severity: warn
+
+    meta:
+      owner: finance-team
+      slack_channel: "#finance-data"
+      dashboard_url: "https://company.looker.com/dashboards/monthly-revenue"
+      contains_pii: false
+      data_classification: internal
+      refresh_schedule: "daily at 6 AM UTC"
