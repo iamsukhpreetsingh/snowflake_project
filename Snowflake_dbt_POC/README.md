@@ -1,5 +1,5 @@
 # Revenue Analytics dbt Project
-DBT Model Code Snippet: [Link]()
+DBT Model Code Snippet: [Link](https://github.com/iamsukhpreetsingh/snowflake_project/blob/main/Snowflake_dbt_POC/prod_monthly_revenue.sql)
 
 
 ## Project Background
