@@ -1,0 +1,72 @@
+STEPS::
+
+1. docker compose up
+2. 
+------   curl -i -X POST -H "Accept:application/json" -H "Content-Type:application/json" 127.0.0.1:8083/connectors/ --data "@debezium_2.json"
+------   curl -X POST http://localhost:8083/connectors \
+  -H "Content-Type: application/json" \
+  -d @s3-sink-config.json
+
+
+3. curl -X GET http://localhost:8083/connectors/exampledb-connector/status
+4. docker exec -it temp-kafka-1 kafka-console-consumer \
+  --bootstrap-server localhost:9092 \
+  --topic postgres.public.student \
+  --from-beginning
+
+
+5. 
+5. 
+
+
+psql -h localhost -U docker -d exampledb
+
+
+
+demo insert statments::
+
+INSERT INTO public.student (name, email) VALUES
+  ('JSON Test User 1', 'json1@example.com'),
+  ('JSON Test User 2', 'json2@example.com'),
+  ('JSON Test User 3', 'json3@example.com'),
+  ('JSON Test User 4', 'json4@example.com'),
+  ('JSON Test User 5', 'json5@example.com'),
+  ('JSON Test User 6', 'json6@example.com'),
+  ('JSON Test User 7', 'json7@example.com'),
+  ('JSON Test User 8', 'json8@example.com'),
+  ('JSON Test User 9', 'json9@example.com'),
+  ('JSON Test User 10', 'json10@example.com');
+
+
+
+
+
+
+{
+  "name": "s3-sink-connector",
+  "config": {
+    "connector.class": "io.confluent.connect.s3.S3SinkConnector",
+    "tasks.max": "1",
+    "topics": "postgres.public.student",
+    "s3.bucket.name": "snowflake-data-practice-bucket",
+    "s3.region": "ap-south-1",
+    "s3.part.size": "5242880",
+    "flush.size": "1000",
+    "rotate.interval.ms": "3600000",
+    "rotate.schedule.interval.ms": "3600000",
+    "timezone": "UTC",
+    "partition.duration.ms": "3600000",
+    "path.format": "YYYY/MM/dd/HH",
+    "locale": "en",
+    "partitioner.class": "io.confluent.connect.s3.partitioner.TimeBasedPartitioner",
+    "storage.class": "io.confluent.connect.s3.storage.S3Storage",
+    "format.class": "io.confluent.connect.s3.format.json.JsonFormat",
+    "aws.access.key.id": "AKIASN62VZ5C7NUFJD5B",
+    "aws.secret.access.key": "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",
+    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "key.converter.schemas.enable": "false",
+    "value.converter.schemas.enable": "false"
+  }
+}
+

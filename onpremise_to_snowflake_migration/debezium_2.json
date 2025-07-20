@@ -1,0 +1,19 @@
+{
+  "name": "exampledb-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "plugin.name": "pgoutput",
+    "database.hostname": "host.docker.internal",
+    "database.port": "5432",
+    "database.user": "docker",
+    "database.password": "docker",
+    "database.dbname": "exampledb",
+    "database.server.name": "postgres",
+    "table.include.list": "public.student",
+    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "key.converter.schemas.enable": false,
+    "value.converter.schemas.enable": false
+  }
+}
+
