@@ -1,0 +1,20 @@
+{
+  "name": "database2-connector",
+  "config": {
+    "connector.class": "io.debezium.connector.postgresql.PostgresConnector",
+    "plugin.name": "pgoutput",
+    "database.hostname": "host.docker.internal",
+    "database.port": "5432",
+    "database.user": "docker",
+    "database.password": "docker",
+    "database.dbname": "database2",
+    "database.server.name": "postgres-2",
+    "table.include.list": "db2_schema.db2_table",
+    "slot.name": "debezium_database2",
+    "key.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "value.converter": "org.apache.kafka.connect.json.JsonConverter",
+    "key.converter.schemas.enable": false,
+    "value.converter.schemas.enable": false
+  }
+}
+
