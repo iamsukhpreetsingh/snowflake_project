@@ -1,0 +1,12 @@
+name: app_environment
+channels:
+  - snowflake
+dependencies:
+  - python=3.10.*
+  - streamlit
+  - snowflake-snowpark-python
+  - pandas
+  - pypdf
+  - snowflake=1.0.0
+  - trulens-core
+  - trulens-providers-cortex
